@@ -24,19 +24,21 @@
 
 ## How to use the api
 
+The base url for the endpoint will either be your localhost:3000 or if you want to use the external service it is hosted at <https://departmental-api.onrender.com>
+
 The endpoints for the api are:
 
-registration : <https://departmental-api.onrender.com/auth/register>
+registration : /auth/register
 
-login: <https://departmental-api.onrender.com/auth/login>
+login: /auth/login
 
-get departments: <https://departmental-api.onrender.com/departments> requires authentication.
+get departments: /departments requires authentication.
 
-get departments by id: <https://departmental-api.onrender.com/departments/:id> as well as the delete and put methods.
+get departments by id: /departments/:id as well as the delete and put methods.
 
-get sub departments: <https://departmental-api.onrender.com/sub-departments>
+get sub departments: /sub-departments
 
-get sub departments by id: <https://departmental-api.onrender.com/sub-departments/:id> as well as the delete and put methods.
+get sub departments by id: /sub-departments/:id as well as the delete and put methods.
 
 ## Project setup
 
