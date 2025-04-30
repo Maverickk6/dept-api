@@ -22,6 +22,22 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## How to use the api
+
+The endpoints for the api are:
+
+registration : <https://departmental-api.onrender.com/auth/register>
+
+login: <https://departmental-api.onrender.com/auth/login>
+
+get departments: <https://departmental-api.onrender.com/departments> requires authentication.
+
+get departments by id: <https://departmental-api.onrender.com/departments/:id> as well as the delete and put methods.
+
+get sub departments: <https://departmental-api.onrender.com/sub-departments>
+
+get sub departments by id: <https://departmental-api.onrender.com/sub-departments/:id> as well as the delete and put methods.
+
 ## Project setup
 
 ```bash
@@ -66,22 +82,6 @@ mau deploy
 ```
 
 With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## How to use the api
-
-The endpoints for the api are:
-
-registration : <https://departmental-api.onrender.com/auth/register>
-
-login: <https://departmental-api.onrender.com/auth/login>
-
-get departments: <https://departmental-api.onrender.com/departments> requires authentication.
-
-get departments by id: <https://departmental-api.onrender.com/departments/:id> as well as the delete and put methods.
-
-get sub departments: <https://departmental-api.onrender.com/sub-departments>
-
-get sub departments by id: <https://departmental-api.onrender.com/sub-departments/:id> as well as the delete and put methods.
 
 ## Resources
 
