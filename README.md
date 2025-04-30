@@ -75,7 +75,7 @@ registration : <https://departmental-api.onrender.com/auth/register>
 
 login: <https://departmental-api.onrender.com/auth/login>
 
-get departments: <https://departmental-api.onrender.com/gepartments> requires authentication.
+get departments: <https://departmental-api.onrender.com/departments> requires authentication.
 
 get departments by id: <https://departmental-api.onrender.com/departments/:id> as well as the delete and put methods.
 
