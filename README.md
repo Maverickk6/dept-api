@@ -72,6 +72,7 @@ With Mau, you can deploy your application in just a few clicks, allowing you to 
 The endpoints for the api are:
 
 registration : <https://departmental-api.onrender.com/auth/register>
+
 login: <https://departmental-api.onrender.com/auth/login>
 
 get departments: <https://departmental-api.onrender.com/gepartments> requires authentication.
