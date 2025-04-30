@@ -10,26 +10,28 @@ import { AuthModule } from './auth/auth.module';
 import { DepartmentModule } from './department/department.module';
 import { APP_FILTER } from '@nestjs/core';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import databaseConfig from './config/database.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => {
-        const dbConfig = configService.get('database') as Record<string, any>;
-        return {
-          type: 'postgres' as const,
-          ...dbConfig,
-          entities: [__dirname + '/**/*.entity{.ts,.js}'],
-          autoLoadEntities: true,
-          logging: false,
-        };
-      },
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres' as const,
+        host: configService.get<string>('DB_HOST', '127.0.0.1'),
+        port: configService.get<number>('DB_PORT', 5434),
+        username: configService.get<string>('DB_USERNAME', 'postgres'),
+        password: configService.get<string>('DB_PASSWORD', 'postgres'),
+        database: configService.get<string>('DB_NAME', 'api-db'),
+        schema: configService.get<string>('DB_SCHEMA', 'public'),
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        synchronize: configService.get<boolean>('DB_SYNCHRONIZE', true),
+        logging: configService.get<boolean>('DB_LOGGING', false),
+        autoLoadEntities: true,
+        ssl: true,
+      }),
       inject: [ConfigService],
     }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
@@ -58,4 +60,4 @@ import databaseConfig from './config/database.config';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}
