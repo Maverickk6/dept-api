@@ -10,82 +10,99 @@ import {
   HttpException,
   HttpStatus,
   NotFoundException,
+  HttpCode,
 } from '@nestjs/common';
 import { DepartmentService } from './department.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Department } from './entities/department.entity';
 import { SubDepartment } from './entities/sub-department.entity';
+import { UpdateSubDepartmentDto } from './dto/update-sub-department.dto';
+import { CreateDepartmentDto } from './dto/create-department.dto';
+import { CreateSubDepartmentDto } from './dto/create-sub-department.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('departments')
 export class DepartmentController {
-  constructor(private readonly departmentService: DepartmentService) {}
+  constructor(private readonly departmentService: DepartmentService) { }
 
   // Sub-departments routes
-  @Get('sub-departments')
-  async getAllSubDepartments(): Promise<SubDepartment[]> {
-    try {
-      return await this.departmentService.findAllSubDepartments();
-    } catch {
-      throw new HttpException(
-        'Failed to retrieve sub-departments',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  @Get('sub-departments/:id')
-  async getSubDepartmentById(@Param('id') id: string): Promise<SubDepartment> {
-    const subDepartment =
-      await this.departmentService.findSubDepartmentById(id);
-    if (!subDepartment) {
-      throw new HttpException('Sub-department not found', HttpStatus.NOT_FOUND);
-    }
-    return subDepartment;
-  }
-
-  @Post('sub-departments')
-  async createSubDepartment(
-    @Body() subDepartment: SubDepartment,
+  @Get(':departmentId/sub-departments/:subDepartmentId')
+  async getSubDepartment(
+    @Param('departmentId') departmentId: string,
+    @Param('subDepartmentId') subDepartmentId: string,
   ): Promise<SubDepartment> {
-    try {
-      return await this.departmentService.createSubDepartment(subDepartment);
-    } catch {
-      throw new HttpException(
-        'Failed to create sub-department',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  @Put('sub-departments/:id')
-  async updateSubDepartment(
-    @Param('id') id: string,
-    @Body() subDepartment: SubDepartment,
-  ): Promise<SubDepartment> {
-    const updated = await this.departmentService.updateSubDepartment(
-      id,
-      subDepartment,
+    return await this.departmentService.findSubDepartmentById(
+      +departmentId,
+      +subDepartmentId,
     );
-    if (!updated) {
-      throw new HttpException('Sub-department not found', HttpStatus.NOT_FOUND);
-    }
-    return updated;
   }
 
-  @Delete('sub-departments/:id')
-  async deleteSubDepartment(@Param('id') id: string): Promise<SubDepartment> {
-    try {
-      return await this.departmentService.deleteSubDepartment(id);
-    } catch {
-      throw new HttpException(
-        'Failed to delete sub-department',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+  @Get(':departmentId/sub-departments')
+  async findAllSubDepartments(
+    @Param('departmentId') departmentId: string,
+  ): Promise<SubDepartment[]> {
+    return this.departmentService.findSubDepartmentsByDepartment(+departmentId);
   }
 
-  // Department routes
+  // @Get('sub-departments/:id')
+  // async getSubDepartmentById(@Param('id') id: string): Promise<SubDepartment> {
+  //   const subDepartment = await this.departmentService.findSubDepartmentById(
+  //     Number(id),
+  //   );
+  //   if (!subDepartment) {
+  //     throw new HttpException('Sub-department not found', HttpStatus.NOT_FOUND);
+  //   }
+  //   return subDepartment;
+  // }
+
+  @Get(':departmentId/sub-departments/:subDepartmentId')
+  findSubDepartmentById(
+    @Param('departmentId') departmentId: string,
+    @Param('subDepartmentId') subDepartmentId: string,
+  ) {
+    return this.departmentService.findSubDepartmentById(
+      +departmentId,
+      +subDepartmentId,
+    );
+  }
+
+  @Post(':departmentId/sub-departments')
+  @HttpCode(HttpStatus.CREATED)
+  async createSubDepartment(
+    @Param('departmentId') departmentId: string,
+    @Body() createDto: CreateSubDepartmentDto,
+  ): Promise<SubDepartment> {
+    return await this.departmentService.createSubDepartment(
+      +departmentId,
+      createDto,
+    );
+  }
+
+  @Put(':departmentId/sub-departments/:subDepartmentId')
+  async updateSubDepartment(
+    @Param('departmentId') departmentId: string,
+    @Param('subDepartmentId') subDepartmentId: string,
+    @Body() updateDto: UpdateSubDepartmentDto,
+  ): Promise<SubDepartment> {
+    return await this.departmentService.updateSubDepartment(
+      +departmentId,
+      +subDepartmentId,
+      updateDto,
+    );
+  }
+
+  @Delete(':departmentId/sub-departments/:subDepartmentId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteSubDepartment(
+    @Param('departmentId') departmentId: string,
+    @Param('subDepartmentId') subDepartmentId: string,
+  ): Promise<void> {
+    await this.departmentService.deleteSubDepartment(
+      +departmentId,
+      +subDepartmentId,
+    );
+  }
+
   @Get()
   async getAllDepartments(): Promise<Department[]> {
     try {
@@ -99,23 +116,17 @@ export class DepartmentController {
   }
 
   @Post()
-  async createDepartment(@Body() department: Department): Promise<Department> {
-    try {
-      return await this.departmentService.createDepartment(
-        department.name,
-        department.subDepartments,
-      );
-    } catch {
-      throw new HttpException(
-        'Failed to create department',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+  async create(
+    @Body() createDepartmentDto: CreateDepartmentDto,
+  ): Promise<Department> {
+    return this.departmentService.createDepartment(createDepartmentDto);
   }
 
   @Get(':id')
   async getDepartmentById(@Param('id') id: string): Promise<Department> {
-    const department = await this.departmentService.findDepartmentById(id);
+    const department = await this.departmentService.findDepartmentById(
+      Number(id),
+    );
     if (!department) {
       throw new HttpException('Department not found', HttpStatus.NOT_FOUND);
     }
@@ -128,7 +139,7 @@ export class DepartmentController {
     @Body() department: Department,
   ): Promise<Department> {
     const updated = await this.departmentService.updateDepartment(
-      id,
+      Number(id),
       department,
     );
     if (!updated) {
@@ -138,9 +149,9 @@ export class DepartmentController {
   }
 
   @Delete(':id')
-  async deleteDepartment(@Param('id') id: string): Promise<Department> {
+  async deleteDepartment(@Param('id') id: string): Promise<void> {
     try {
-      return await this.departmentService.deleteDepartment(id);
+      return await this.departmentService.deleteDepartment(Number(id));
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw new HttpException(error.getResponse(), HttpStatus.NOT_FOUND);

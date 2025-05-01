@@ -4,9 +4,13 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Department } from './entities/department.entity';
 import { SubDepartment } from './entities/sub-department.entity';
+import { CreateDepartmentDto } from './dto/create-department.dto';
+import { UpdateDepartmentDto } from './dto/update-department.dto';
+import { UpdateSubDepartmentDto } from './dto/update-sub-department.dto';
+import { CreateSubDepartmentDto } from './dto/create-sub-department.dto';
 
 @Injectable()
 export class DepartmentService {
@@ -18,161 +22,219 @@ export class DepartmentService {
     private readonly subDepartmentRepository: Repository<SubDepartment>,
   ) {}
 
-  async createDepartment(
-    name: string,
-    subDepartments?: { name: string }[],
-  ): Promise<Department> {
-    const department = this.departmentRepository.create({ name });
-    if (subDepartments) {
-      department.subDepartments = subDepartments.map((sub) =>
-        this.subDepartmentRepository.create(sub),
+  async createDepartment(createDto: CreateDepartmentDto): Promise<Department> {
+    const department = this.departmentRepository.create({
+      name: createDto.name,
+    });
+
+    if (createDto.subDepartments?.length) {
+      department.subDepartments = createDto.subDepartments.map((subDto) =>
+        this.subDepartmentRepository.create({
+          name: subDto.name,
+          department,
+        }),
       );
     }
+
     return this.departmentRepository.save(department);
   }
 
   async findAllDepartments(): Promise<Department[]> {
-    return this.departmentRepository.find({ relations: ['subDepartments'] });
+    try {
+      return this.departmentRepository.find({
+        relations: ['subDepartments'],
+        order: { id: 'ASC' },
+      });
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to fetch departments');
+    }
   }
 
-  async findDepartmentById(id: string): Promise<Department | null> {
-    return this.departmentRepository.findOne({
-      where: { id: Number(id) },
-      relations: ['subDepartments'],
-    });
-  }
-
-  async updateDepartment(
-    id: string,
-    department: Partial<Department>,
-  ): Promise<Department> {
-    const existingDepartment = await this.departmentRepository.findOne({
-      where: { id: Number(id) },
-      relations: ['subDepartments'],
-    });
-
-    if (!existingDepartment) {
-      throw new NotFoundException('Department not found');
-    }
-
-    // Update department name if provided
-    if (department.name) {
-      existingDepartment.name = department.name;
-    }
-
-    // Handle sub-departments update
-    if (department.subDepartments) {
-      // Get IDs of sub-departments in the update request
-      const updatedSubDepartmentIds = department.subDepartments
-        .map((sub) => sub.id)
-        .filter(Boolean);
-
-      // Remove sub-departments that are not in the update
-      await Promise.all(
-        existingDepartment.subDepartments
-          .filter((sub) => !updatedSubDepartmentIds.includes(sub.id))
-          .map((sub) => this.subDepartmentRepository.remove(sub)),
-      );
-
-      // Update or create sub-departments
-      const updatedSubDepartments = await Promise.all(
-        department.subDepartments.map(async (sub) => {
-          if (sub.id) {
-            // Update existing sub-department
-            const existingSub = await this.subDepartmentRepository.findOne({
-              where: { id: sub.id },
-            });
-            if (existingSub) {
-              Object.assign(existingSub, sub);
-              return this.subDepartmentRepository.save(existingSub);
-            }
-          }
-          
-          // Create new sub-department
-          const newSub = this.subDepartmentRepository.create({
-            ...sub,
-            department: existingDepartment,
-          });
-          return this.subDepartmentRepository.save(newSub);
-        }),
-      );
-
-      existingDepartment.subDepartments = updatedSubDepartments;
-    }
-
-    return this.departmentRepository.save(existingDepartment);
-  }
-
-  async deleteDepartment(id: string): Promise<Department> {
+  async findDepartmentById(id: number): Promise<Department> {
     const department = await this.departmentRepository.findOne({
-      where: { id: Number(id) },
+      where: { id },
       relations: ['subDepartments'],
     });
 
     if (!department) {
-      throw new NotFoundException('Department not found');
+      throw new NotFoundException(`Department with ID ${id} not found`);
     }
+    return department;
+  }
 
-    // Delete all associated sub-departments first
-    if (department.subDepartments && department.subDepartments.length > 0) {
+  async updateDepartment(
+    id: number,
+    updateDepartmentDto: UpdateDepartmentDto,
+  ): Promise<Department> {
+    try {
+      const existingDepartment = await this.findDepartmentById(id);
+
+      if (updateDepartmentDto.name) {
+        existingDepartment.name = updateDepartmentDto.name;
+      }
+
+      if (updateDepartmentDto.subDepartments) {
+        await this.handleSubDepartmentsUpdate(
+          existingDepartment,
+          updateDepartmentDto.subDepartments,
+        );
+      }
+
+      return await this.departmentRepository.save(existingDepartment);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to update department');
+    }
+  }
+
+  private async handleSubDepartmentsUpdate(
+    department: Department,
+    subDepartmentsDto: UpdateSubDepartmentDto[],
+  ): Promise<void> {
+    const existingSubs = department.subDepartments || [];
+    const updatedSubIds = subDepartmentsDto
+      .map((sub) => sub.id)
+      .filter(Boolean);
+
+    // Remove sub-departments not in the update
+    const subsToRemove = existingSubs.filter(
+      (sub) => !updatedSubIds.includes(sub.id),
+    );
+    if (subsToRemove.length) {
+      // await this.subDepartmentRepository.remove(subsToRemove);
       await Promise.all(
-        department.subDepartments.map((sub) =>
-          this.subDepartmentRepository.remove(sub),
-        ),
+        subsToRemove.map((sub) => this.subDepartmentRepository.remove(sub)),
       );
     }
 
-    // Now delete the department
-    return this.departmentRepository.remove(department);
+    // department.subDepartments = updatedSubs;
+    department.subDepartments = await Promise.all(
+      subDepartmentsDto.map(async (dto) => {
+        if (dto.id) {
+          const existing = existingSubs.find((sub) => sub.id === dto.id);
+          if (existing && dto.name) {
+            existing.name = dto.name;
+            return this.subDepartmentRepository.save(existing);
+          }
+        }
+        return this.subDepartmentRepository.create({
+          name: dto.name,
+          department,
+        });
+      }),
+    );
   }
 
-  async findAllSubDepartments(): Promise<SubDepartment[]> {
-    return await this.subDepartmentRepository.find({
-      select: {
-        id: true,
-        name: true,
+  async deleteDepartment(id: number): Promise<void> {
+    return this.departmentRepository.manager.transaction(
+      async (transactionalEntityManager) => {
+        const department = await transactionalEntityManager.findOne(
+          Department,
+          {
+            where: { id },
+            relations: ['subDepartments'],
+          },
+        );
+
+        if (!department) {
+          throw new NotFoundException(`Department ${id} not found`);
+        }
+
+        if (department.subDepartments?.length) {
+          await transactionalEntityManager.remove(
+            SubDepartment,
+            department.subDepartments,
+          );
+        }
+
+        await transactionalEntityManager.remove(Department, department);
       },
-      relations: {
-        department: true,
-      },
-    });
+    );
   }
 
   async createSubDepartment(
-    subDepartment: SubDepartment,
+    departmentId: number,
+    createDto: CreateSubDepartmentDto,
   ): Promise<SubDepartment> {
+    const department = await this.departmentRepository.findOneBy({
+      id: departmentId,
+    });
+    if (!department) {
+      throw new NotFoundException(`Department ${departmentId} not found`);
+    }
+
+    const subDepartment = this.subDepartmentRepository.create({
+      ...createDto,
+      department,
+    });
+
     return this.subDepartmentRepository.save(subDepartment);
   }
 
   async updateSubDepartment(
-    id: string,
-    subDepartment: Partial<SubDepartment>,
-  ): Promise<SubDepartment | null> {
-    await this.subDepartmentRepository.update(id, subDepartment);
-    return this.subDepartmentRepository.findOne({ where: { id: Number(id) } });
-  }
+    departmentId: number,
+    subDepartmentId: number,
+    updateDto: UpdateSubDepartmentDto,
+  ): Promise<SubDepartment> {
+    // First verify the department exists
+    await this.findDepartmentById(departmentId);
 
-  async deleteSubDepartment(id: string): Promise<SubDepartment> {
+    // Get the existing sub-department
     const subDepartment = await this.subDepartmentRepository.findOne({
-      where: { id: Number(id) },
+      where: {
+        id: subDepartmentId,
+        department: { id: departmentId },
+      },
+      relations: ['department'],
     });
+
     if (!subDepartment) {
-      throw new Error('Sub-department not found');
+      throw new NotFoundException(
+        `SubDepartment ${subDepartmentId} not found in Department ${departmentId}`,
+      );
     }
-    return this.subDepartmentRepository.remove(subDepartment);
+
+    // Update fields if provided in DTO
+    if (updateDto.name !== undefined) {
+      subDepartment.name = updateDto.name;
+
+      return this.subDepartmentRepository.save(subDepartment);
+    }
   }
 
-  async findSubDepartmentById(id: string): Promise<SubDepartment | null> {
+  async deleteSubDepartment(
+    departmentId: number,
+    subDepartmentId: number,
+  ): Promise<void> {
+    try {
+      const subDepartment = await this.findSubDepartmentById(
+        departmentId,
+        subDepartmentId,
+      );
+      await this.subDepartmentRepository.remove(subDepartment);
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to delete sub-department');
+    }
+  }
+  async findSubDepartmentById(
+    departmentId: number,
+    subDepartmentId: number,
+  ): Promise<SubDepartment> {
     try {
       const subDepartment = await this.subDepartmentRepository.findOne({
-        where: { id: Number(id) },
-        relations: {
-          department: true,
+        where: {
+          id: subDepartmentId,
+          department: { id: departmentId },
         },
+        relations: ['department'],
       });
 
       if (!subDepartment) {
-        throw new NotFoundException('Sub-department not found');
+        throw new NotFoundException(
+          `SubDepartment with ID ${subDepartmentId} not found in Department ${departmentId}`,
+        );
       }
 
       return subDepartment;
@@ -183,6 +245,20 @@ export class DepartmentService {
       throw new InternalServerErrorException(
         'Failed to retrieve sub-department',
       );
+    }
+  }
+
+  async findSubDepartmentsByDepartment(
+    departmentId: number,
+  ): Promise<SubDepartment[]> {
+    try {
+      await this.findDepartmentById(departmentId); // Verify department exists
+      return this.subDepartmentRepository.find({
+        where: { department: { id: departmentId } },
+        order: { id: 'ASC' },
+      });
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to fetch sub-departments');
     }
   }
 }
