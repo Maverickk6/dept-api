@@ -51,22 +51,23 @@
 - PostgreSQL v15+
 - Docker (optional)
 
-# 1. Clone repository
+### 1. Clone repository
 
 git clone <https://github.com/Maverickk6/dept-api.git>
-cd dept-api
 
-# 2. Install dependencies
+then cd dept-api
+
+### 2. Install dependencies
 
 pnpm install
 
-# 3. Configure environment
+### 3. Configure environment
 
 cp .env.example .env
 
-# Edit .env with your credentials
+### Edit .env with your credentials
 
-# 4. Start database (using Docker) with your own settings. there are default variables in the app module you can edit with yours incase there is no dotenv
+### 4. Start database (using Docker) with your own docker config and settings. there are default variables in the app module you can edit with yours incase there is no dotenv
 
 docker-compose up -d
 
