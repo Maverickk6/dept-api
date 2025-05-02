@@ -18,58 +18,299 @@
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-## Description
+# Department Management API
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)
+![GraphQL](https://img.shields.io/badge/GraphQL-E10098?style=for-the-badge&logo=graphql&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
 
-## How to use the api
+## Table of Contents
 
-The base url for the endpoint will either be your localhost:3000 or if you want to use the external service it is hosted at <https://departmental-api.onrender.com>
+- [Features](#features)
+- [Setup](#setup)
+- [Authentication](#authentication)
+- [API Endpoints](#api-endpoints)
+- [GraphQL Examples](#graphql-examples)
+- [Database Schema](#database-schema)
+- [Environment Variables](#environment-variables)
 
-The endpoints for the api are:
+## Features
 
-registration : /auth/register
+- JWT Authentication
+- Dual REST & GraphQL endpoints
+- CRUD operations for Departments
+- Nested CRUD for Sub-Departments
+- Input validation
+- Error handling middleware
 
-login: /auth/login
+## Setup
 
-get departments: /departments requires authentication.
+### Prerequisites
 
-get departments by id: /departments/:id as well as the delete and put methods.
+- Node.js v18+
+- PostgreSQL v15+
+- Docker (optional)
 
-get sub departments: /sub-departments
+# 1. Clone repository
 
-get sub departments by id: /sub-departments/:id as well as the delete and put methods.
+git clone <https://github.com/Maverickk6/dept-api.git>
+cd dept-api
 
-## Project setup
+# 2. Install dependencies
 
-```bash
 pnpm install
-```
 
-## Compile and run the project
+# 3. Configure environment
+
+cp .env.example .env
+
+# Edit .env with your credentials
+
+# 4. Start database (using Docker) with your own settings. there are default variables in the app module you can edit with yours incase there is no dotenv
+
+docker-compose up -d
+
+# 6. Start server
+
+pnpm start:dev
+
+## Authentication
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+curl -X POST <http://localhost:3000/auth/login> \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}'
+Returns JWT token for authenticated requests.
 ```
 
-## Run tests
+## REST API Endpoints
+
+### Authentication Sample
+
+| Method | Endpoint          | Description           | Request Body Example                    | Success Response                     |
+|--------|-------------------|-----------------------|-----------------------------------------|--------------------------------------|
+| `POST` | `/auth/login`     | User authentication   | `{"username":"admin","password":"admin"}` | `{"token":"eyJhbGciOi...","user":{"id":1,"username":"admin"}}` |
+
+### Departments
+
+| Method | Endpoint            | Description           | Parameters                     | Example Request                     |
+|--------|---------------------|-----------------------|--------------------------------|-------------------------------------|
+| `GET`  | `/departments`      | List all departments  | `?page=1&limit=10` (optional)  | -                                   |
+| `POST` | `/departments`      | Create department     | `name: string` (required)      | `{"name":"Engineering"}`            |
+| `GET`  | `/departments/:id`  | Get department        | -                              | -                                   |
+| `PUT`  | `/departments/:id`  | Update department     | `name: string` (optional)      | `{"name":"Engineering Dept"}`       |
+| `DELETE`| `/departments/:id`  | Delete department     | -                              | -                                   |
+
+### Sub-Departments
+
+| Method | Endpoint                                  | Description             | Parameters                     | Example Request                     |
+|--------|-------------------------------------------|-------------------------|--------------------------------|-------------------------------------|
+| `GET`  | `/departments/:id/sub-departments`        | List sub-departments    | -                              | -                                   |
+| `POST` | `/departments/:id/sub-departments`        | Create sub-department   | `name: string` (required)      | `{"name":"Frontend Team"}`          |
+| `PUT`  | `/departments/:id/sub-departments/:subId` | Update sub-department   | `name: string` (optional)      | `{"name":"Frontend Development"}`   |
+| `DELETE`| `/departments/:id/sub-departments/:subId` | Delete sub-department   | -                              | -                                   |
+
+---
+
+# GraphQL API Reference
+
+## Queries
+
+```graphq
+# Get all departments with their sub-departments
+query GetAllDepartments {
+  departments {
+    id
+    name
+    subDepartments {
+      id
+      name
+    }
+  }
+}
+
+# Get single department with sub-departments
+query GetDepartment($id: Int!) {
+  department(id: $id) {
+    id
+    name
+    subDepartments {
+      id
+      name
+    }
+  }
+}
+
+```
+
+## Mutations
+
+``` graphq
+# Create department (with optional sub-departments)
+
+mutation CreateDepartment($input: CreateDepartmentDto!) {
+  createDepartment(input: $input) {
+    id
+    name
+    subDepartments {
+      id
+      name
+    }
+  }
+}
+
+# Variables:
+
+{
+  "input": {
+    "name": "Engineering",
+    "subDepartments": [
+      {"name": "Frontend"},
+      {"name": "Backend"}
+    ]
+  }
+}
+
+# Update sub-department
+
+mutation UpdateSubDepartment(
+  $departmentId: Int!
+  $subDepartmentId: Int!
+  $input: UpdateSubDepartmentDto!
+) {
+  updateSubDepartment(
+    departmentId: $departmentId
+    subDepartmentId: $subDepartmentId
+    input: $input
+  ) {
+    id
+    name
+  }
+}
+```
+
+# Sample Requests
+
+## Rest examples
 
 ```bash
-# unit tests
-$ pnpm run test
+# Login and store token
+TOKEN=$(curl -s -X POST <http://localhost:3000/auth/login> \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq -r '.token')
 
-# e2e tests
-$ pnpm run test:e2e
+### Create department
 
-# test coverage
-$ pnpm run test:cov
+curl -X POST <http://localhost:3000/departments> \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Marketing"}'
+
+### Add sub-department
+
+curl -X POST <http://localhost:3000/departments/1/sub-departments> \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Digital Marketing"}'
+```
+
+## GraphQL Playground
+
+Access at <http://localhost:3000/graphql>
+
+## GraphQl Examples
+
+```bash
+# Query with variables file (query.graphql)
+
+curl http://localhost:3000/graphql \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '@query.json'
+
+
+### query.json contents
+{
+  "query": "query GetDepartment($id: Int!) { department(id: $id) { id name } }",
+  "variables": { "id": 1 }
+}
+
+```
+
+## Response Formats
+
+### Successful Response
+
+```json 
+// Department with sub-departments
+{
+  "id": 1,
+  "name": "Engineering",
+  "subDepartments": [
+    {
+      "id": 3,
+      "name": "Frontend"
+    }
+  ]
+}
+
+// Authentication
+{
+  "token": "eyJhbGciOi...",
+  "user": {
+    "id": 1,
+    "username": "admin"
+  }
+}
+
+```
+
+### Department Response Example
+
+```json
+{
+  "id": 1,
+  "name": "Engineering",
+  "subDepartments": [
+    {
+      "id": 3,
+      "name": "Frontend"
+    }
+  ]
+}
+```
+
+### Authentication Response Example
+
+```json
+{
+  "token": "eyJhbGciOi...",
+  "user": {
+    "id": 1,
+    "username": "admin"
+  }
+}
+```
+
+## Error Responses
+
+```json
+{
+  "statusCode": 404,
+  "message": "Department not found",
+  "error": "Not Found"
+}
+
+{
+  "errors": [
+    {
+      "message": "Name must be at least 2 characters long",
+      "extensions": {
+        "code": "BAD_USER_INPUT"
+      }
+    }
+  ]
+}
 ```
 
 ## Deployment

@@ -21,18 +21,21 @@ type Department {
 
 type Query {
   users: [User!]!
-  getDepartments: [Department!]!
-  getDepartmentById(id: String!): Department
-  getAllSubDepartments: [SubDepartment!]
-  getSubDepartmentById(id: String!): SubDepartment
+  departments: [Department!]!
+  department(id: String!): Department!
+  subDepartment(departmentId: Int!, subDepartmentId: Int!): SubDepartment
+  subDepartments(departmentId: Int!): [SubDepartment!]!
 }
 
 type Mutation {
   register(createUserDto: CreateUserDto!): User!
   login(loginUserDto: LoginUserDto!): User!
-  createDepartment(name: String!, subDepartments: [String!]): Department!
-  updateDepartment(id: String!, department: UpdateDepartmentDto!): Department!
-  deleteDepartment(id: String!): Department!
+  createDepartment(createDepartmentDto: CreateDepartmentDto!): Department!
+  deleteDepartment(id: String!): Boolean!
+  createSubDepartment(departmentId: Int!, input: CreateSubDepartmentDto!): SubDepartment!
+  updateSubDepartment(departmentId: Int!, subDepartmentId: Int!, input: UpdateSubDepartmentDto!): SubDepartment!
+  deleteSubDepartment(departmentId: Int!, subDepartmentId: Int!): Boolean!
+  updateDepartment(id: Int!, input: UpdateDepartmentDto!): Department!
 }
 
 input CreateUserDto {
@@ -45,12 +48,21 @@ input LoginUserDto {
   password: String!
 }
 
-input UpdateDepartmentDto {
-  name: String
-  subDepartments: [UpdateSubDepartmentDto!]
+input CreateDepartmentDto {
+  name: String!
+  subDepartments: [CreateSubDepartmentDto!]
+}
+
+input CreateSubDepartmentDto {
+  name: String!
 }
 
 input UpdateSubDepartmentDto {
   id: Int
   name: String
+}
+
+input UpdateDepartmentDto {
+  name: String
+  subDepartments: [UpdateSubDepartmentDto!]
 }
