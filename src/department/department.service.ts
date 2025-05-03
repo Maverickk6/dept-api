@@ -20,23 +20,23 @@ export class DepartmentService {
 
     @InjectRepository(SubDepartment)
     private readonly subDepartmentRepository: Repository<SubDepartment>,
-  ) {}
+  ) { }
 
   async createDepartment(createDto: CreateDepartmentDto): Promise<Department> {
-    const department = this.departmentRepository.create({
-      name: createDto.name,
-    });
-
-    if (createDto.subDepartments?.length) {
-      department.subDepartments = createDto.subDepartments.map((subDto) =>
-        this.subDepartmentRepository.create({
+    try {
+      const department = this.departmentRepository.create({
+        name: createDto.name,
+        // Create sub-departments as plain objects to leverage cascade
+        subDepartments: createDto.subDepartments?.map((subDto) => ({
           name: subDto.name,
-          department,
-        }),
-      );
-    }
+        })),
+      });
 
-    return this.departmentRepository.save(department);
+      return await this.departmentRepository.save(department);
+    } catch (error) {
+      console.error('Error creating department:', error);
+      throw new InternalServerErrorException('Failed to create department');
+    }
   }
 
   async findAllDepartments(): Promise<Department[]> {
@@ -94,37 +94,32 @@ export class DepartmentService {
     subDepartmentsDto: UpdateSubDepartmentDto[],
   ): Promise<void> {
     const existingSubs = department.subDepartments || [];
-    const updatedSubIds = subDepartmentsDto
-      .map((sub) => sub.id)
-      .filter(Boolean);
-
-    // Remove sub-departments not in the update
+    // Map the DTOs to the SubDepartment entities
+    const updatedSubs = subDepartmentsDto.map((dto) => {
+      if (dto.id) {
+        // Update existing sub-department
+        const existing = existingSubs.find((sub) => sub.id === dto.id);
+        if (existing) {
+          existing.name = dto.name || existing.name;
+          return existing;
+        }
+      }
+      // Create a new sub-department with no ID in the DTO
+      return this.subDepartmentRepository.create({
+        name: dto.name,
+        department, // Set parent relationship
+      });
+    });
+    // Remove sub-departments which were not included in the DTO
     const subsToRemove = existingSubs.filter(
-      (sub) => !updatedSubIds.includes(sub.id),
+      (existingSub) => !updatedSubs.some((sub) => sub.id === existingSub.id),
     );
-    if (subsToRemove.length) {
-      // await this.subDepartmentRepository.remove(subsToRemove);
-      await Promise.all(
-        subsToRemove.map((sub) => this.subDepartmentRepository.remove(sub)),
-      );
+    if (subsToRemove.length > 0) {
+      await this.subDepartmentRepository.remove(subsToRemove);
     }
 
-    // department.subDepartments = updatedSubs;
-    department.subDepartments = await Promise.all(
-      subDepartmentsDto.map(async (dto) => {
-        if (dto.id) {
-          const existing = existingSubs.find((sub) => sub.id === dto.id);
-          if (existing && dto.name) {
-            existing.name = dto.name;
-            return this.subDepartmentRepository.save(existing);
-          }
-        }
-        return this.subDepartmentRepository.create({
-          name: dto.name,
-          department,
-        });
-      }),
-    );
+    // Assign updated sub-departments to the department
+    department.subDepartments = updatedSubs;
   }
 
   async deleteDepartment(id: number): Promise<void> {
